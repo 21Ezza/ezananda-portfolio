@@ -293,9 +293,12 @@ body {
 }
 
 .container1 {
-    max-width: 1200px;
+    max-width: 1050px;
     margin: 0 auto;
     text-align: center;
+    justify-content: center;   /* center horizontally */
+    align-items: center;       /* center vertically */
+    height: 50vh;   
 }
 .container2 {
     width: 600px;
@@ -325,8 +328,10 @@ body {
 
 .Technical-bars {
     display: flex;
-    align-items: center;
-    gap: 20px; /* Adjust the gap between bars */
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
 }
 
 .Technical-bars .bar {
