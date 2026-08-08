@@ -1,0 +1,10 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Dev tooling (never part of the deployed site)
+node_modules/
+
+# Uncompressed image originals (kept locally only — compressed versions are committed)
+_originals/

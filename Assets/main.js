@@ -1,279 +1,225 @@
+/* ==========================================================================
+   Portfolio interactions
+   Loaded with `defer`, so the DOM is ready when this runs.
 
-const typed = new Typed(".text", {
-    strings: ["Manual Testing", "Automation Testing", "Performance Testing"],
-    typeSpeed: 100,
-    backSpeed: 100,
-    backDelay: 1000,
-    loop: true
-});
+   Contracts with index.html:
+   - Modal triggers carry  data-modal-target="#modal-id"
+   - Modal close buttons carry  data-modal-close
+   - Gallery images inside modals use  data-src  (swapped to src on first open,
+     so ~MBs of screenshots are never downloaded until a gallery is viewed)
+   - The open state is the  .modal.is-open  CSS class
+   ========================================================================== */
 
+/* ---------- Typed.js headline (with static fallback if the CDN fails) ---------- */
 
-const toTop = document.querySelector(".top");
-window.addEventListener("scroll", () => {
-    if (window.pageYOffset > 100) {
-        toTop.classList.add("active");
+const typedTarget = document.querySelector(".text");
+if (typedTarget) {
+    if (window.Typed) {
+        new Typed(".text", {
+            strings: ["Manual Testing", "Automation Testing", "Performance Testing"],
+            typeSpeed: 100,
+            backSpeed: 100,
+            backDelay: 1000,
+            loop: true,
+        });
+    } else {
+        typedTarget.textContent = "Manual, Automation & Performance Testing";
     }
-    else {
-        toTop.classList.remove("active");
-    }
-})
-
-function sendMail(event) {
-    event.preventDefault(); // Prevent default form submission behavior
-
-    const params = {
-        name: document.getElementById("name").value,
-        email: document.getElementById("email").value,
-        subject: document.getElementById("subject").value,
-        message: document.getElementById("message").value
-    };
-
-    const serviceID = "service_04r37xh";
-    const templateID = "template_atisenq";
-
-    emailjs.send(serviceID, templateID, params)
-        .then(res => {
-            document.getElementById("name").value = "";
-            document.getElementById("email").value = "";
-            document.getElementById("subject").value = "";
-            document.getElementById("message").value = "";
-            console.log(res);
-            alert("Your message sent successfully");
-        })
-        .catch(err => console.error("Error sending email:", err));
 }
 
-document.getElementById("contactForm").addEventListener("submit", sendMail);
+/* ---------- Modal system ---------- */
 
-document.addEventListener("DOMContentLoaded", function () {
-    // Handle multiple error modals
-    const modalElements = document.querySelectorAll(".error-modal");
-    const linkElements = document.querySelectorAll(".file-link");
-    const closeButtons = document.querySelectorAll(".close");
+const modalStack = [];          // supports the lightbox opening on top of a gallery
+const triggerFor = new WeakMap(); // modal -> element to restore focus to on close
 
-    linkElements.forEach((link, index) => {
-        link.addEventListener("click", function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            modalElements[index].style.display = "flex";
-        });
+function hydrateImages(modal) {
+    modal.querySelectorAll("img[data-src]").forEach((img) => {
+        img.src = img.dataset.src;
+        img.removeAttribute("data-src");
     });
+}
 
-    closeButtons.forEach((button, index) => {
-        button.onclick = function () {
-            modalElements[index].style.display = "none";
-        }
-    });
+function openModal(modal, trigger) {
+    if (!modal || modal.classList.contains("is-open")) return;
+    hydrateImages(modal);
+    modal.classList.add("is-open");
+    modalStack.push(modal);
+    if (trigger) triggerFor.set(modal, trigger);
+    const closeBtn = modal.querySelector("[data-modal-close]");
+    if (closeBtn) closeBtn.focus();
+}
 
-    // Handle Referit Gallery Modal
-    const referitModal = document.getElementById("referit-modal");
-    const referitLink = document.getElementById("referit-link");
-    const referitClose = document.querySelector(".close-referit");
+function closeModal(modal = modalStack[modalStack.length - 1]) {
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    const idx = modalStack.indexOf(modal);
+    if (idx > -1) modalStack.splice(idx, 1);
+    const trigger = triggerFor.get(modal);
+    if (trigger && document.contains(trigger)) trigger.focus();
+}
 
-    if (referitLink) {
-        referitLink.addEventListener("click", function (event) {
-            event.preventDefault();
-            referitModal.style.display = "flex";
-        });
+document.addEventListener("click", (event) => {
+    // 1. Close buttons
+    if (event.target.closest("[data-modal-close]")) {
+        closeModal(event.target.closest(".modal"));
+        return;
     }
 
-    if (referitClose) {
-        referitClose.onclick = function () {
-            referitModal.style.display = "none";
-        }
+    // 2. Real links (external sites, documents, nav anchors): let the browser handle them,
+    //    even when they sit inside a card that is itself a modal trigger.
+    const link = event.target.closest("a[href]");
+    if (link && !link.hasAttribute("data-modal-target") && link.getAttribute("href") !== "#") {
+        return;
     }
 
-    // Handle Duo Gallery Modal
-    const duoModal = document.getElementById("duo-modal");
-    const duoLink = document.getElementById("duo-link");
-    const duoClose = document.querySelector(".close-duo");
-
-    if (duoLink) {
-        duoLink.addEventListener("click", function (event) {
-            event.preventDefault();
-            duoModal.style.display = "flex";
-        });
+    // 3. Modal triggers (innermost wins: an icon's own target beats its card's target)
+    const trigger = event.target.closest("[data-modal-target]");
+    if (trigger) {
+        event.preventDefault();
+        openModal(document.querySelector(trigger.dataset.modalTarget), trigger);
+        return;
     }
 
-    if (duoClose) {
-        duoClose.onclick = function () {
-            duoModal.style.display = "none";
-        }
-    }
-
-    // Handle Duo Restricted Modal
-    const duoRestrictedModal = document.getElementById("duo-restricted-modal");
-    const duoActionLink = document.getElementById("duo-action-link");
-    const duoRestrictedClose = document.querySelector(".close-restricted");
-
-    if (duoActionLink) {
-        duoActionLink.addEventListener("click", function (event) {
-            event.preventDefault();
-            duoRestrictedModal.style.display = "flex";
-        });
-    }
-
-    if (duoRestrictedClose) {
-        duoRestrictedClose.onclick = function () {
-            duoRestrictedModal.style.display = "none";
-        }
-    }
-
-    // Handle Suncorp Gallery Modal
-    const suncorpModal = document.getElementById("suncorp-modal");
-    const suncorpLink = document.getElementById("suncorp-link");
-    const suncorpClose = document.querySelector(".close-suncorp");
-
-    if (suncorpLink) {
-        suncorpLink.addEventListener("click", function (event) {
-            event.preventDefault();
-            suncorpModal.style.display = "flex";
-        });
-    }
-
-    if (suncorpClose) {
-        suncorpClose.onclick = function () {
-            suncorpModal.style.display = "none";
-        }
-    }
-
-    // Handle Suncorp Restricted Modal
-    const suncorpRestrictedModal = document.getElementById("suncorp-restricted-modal");
-    const suncorpActionLink = document.getElementById("suncorp-action-link");
-    // We can reuse close-restricted logic if they share the class, but we need to ensure the right modal closes
-    // Actually, .close-restricted is used for multiple modals, so we should querySelectorAll or just rely on the onclick handler closing its parent or specific ID.
-    // The previous implementation for duoRestrictedClose used `document.querySelector(".close-restricted")`, which only selects the FIRST one.
-    // We need to fix this to handle multiple restricted close buttons.
-
-    // Let's select all close-restricted buttons and add listeners to close their respective parent modals
-    const restrictedCloseButtons = document.querySelectorAll(".close-restricted");
-    restrictedCloseButtons.forEach(btn => {
-        btn.onclick = function () {
-            // Find the closest modal parent and hide it
-            const modal = this.closest('.modal');
-            if (modal) {
-                modal.style.display = "none";
-            }
-        }
-    });
-
-    if (suncorpActionLink) {
-        suncorpActionLink.addEventListener("click", function (event) {
-            event.preventDefault();
-            suncorpRestrictedModal.style.display = "flex";
-        });
-    }
-
-    // Handle Lightbox
-    const lightboxModal = document.getElementById("lightbox-modal");
-    const lightboxImg = document.getElementById("lightbox-img");
-    let galleryImages = []; // Changed to let and empty array initially
-    const lightboxClose = document.querySelector(".close-lightbox");
-    const prevBtn = document.querySelector(".lightbox-prev");
-    const nextBtn = document.querySelector(".lightbox-next");
-    let currentImageIndex = 0;
-
-    // Helper to update navigation buttons visibility
-    function updateNavButtons() {
-        if (!galleryImages.length) return;
-
-        // Hide prev button if at start
-        if (currentImageIndex <= 0) {
-            prevBtn.style.display = "none";
-        } else {
-            prevBtn.style.display = "block";
-        }
-
-        // Hide next button if at end
-        if (currentImageIndex >= galleryImages.length - 1) {
-            nextBtn.style.display = "none";
-        } else {
-            nextBtn.style.display = "block";
-        }
-    }
-
-    // Attach click listeners to all potential gallery images
-    const allGalleryImages = document.querySelectorAll(".gallery-grid img");
-    allGalleryImages.forEach((img) => {
-        img.addEventListener("click", function () {
-            // Find the specific gallery container for this image
-            const container = this.closest('.gallery-grid');
-            if (container) {
-                // Set the current gallery context
-                galleryImages = Array.from(container.querySelectorAll('img'));
-                currentImageIndex = galleryImages.indexOf(this);
-
-                lightboxModal.style.display = "flex";
-                lightboxImg.src = this.src;
-                updateNavButtons();
-            }
-        });
-    });
-
-    if (lightboxClose) {
-        lightboxClose.onclick = function () {
-            lightboxModal.style.display = "none";
-        }
-    }
-
-    if (prevBtn) {
-        prevBtn.addEventListener("click", function (e) {
-            e.stopPropagation(); // Prevent modal close
-            if (currentImageIndex > 0) {
-                currentImageIndex--;
-                lightboxImg.src = galleryImages[currentImageIndex].src;
-                updateNavButtons();
-            }
-        });
-    }
-
-    if (nextBtn) {
-        nextBtn.addEventListener("click", function (e) {
-            e.stopPropagation(); // Prevent modal close
-            if (currentImageIndex < galleryImages.length - 1) {
-                currentImageIndex++;
-                lightboxImg.src = galleryImages[currentImageIndex].src;
-                updateNavButtons();
-            }
-        });
-    }
-
-    window.onclick = function (event) {
-        // Close error modals
-        modalElements.forEach((modal) => {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        });
-
-        // Close referit modal
-        if (event.target == referitModal) {
-            referitModal.style.display = "none";
-        }
-
-        // Close duo modal
-        if (event.target == duoModal) {
-            duoModal.style.display = "none";
-        }
-
-        // Close duo restricted modal
-        if (event.target == duoRestrictedModal) {
-            duoRestrictedModal.style.display = "none";
-        }
-
-        // Close suncorp modal
-        if (event.target == suncorpModal) {
-            suncorpModal.style.display = "none";
-        }
-
-        // Close suncorp restricted modal
-        if (event.target == suncorpRestrictedModal) {
-            suncorpRestrictedModal.style.display = "none";
-        }
-
-        // Close lightbox modal
-        if (event.target == lightboxModal) {
-            lightboxModal.style.display = "none";
-        }
+    // 4. Clicking a modal's dark backdrop closes that modal
+    if (event.target.classList.contains("modal") && event.target.classList.contains("is-open")) {
+        closeModal(event.target);
     }
 });
+
+/* ---------- Lightbox (opens from any gallery image, on top of the gallery modal) ---------- */
+
+const lightboxModal = document.getElementById("lightbox-modal");
+const lightboxImg = document.getElementById("lightbox-img");
+let galleryImages = [];
+let currentImageIndex = 0;
+
+function updateLightboxNav() {
+    const prev = lightboxModal.querySelector(".lightbox-prev");
+    const next = lightboxModal.querySelector(".lightbox-next");
+    prev.style.display = currentImageIndex > 0 ? "block" : "none";
+    next.style.display = currentImageIndex < galleryImages.length - 1 ? "block" : "none";
+}
+
+function stepLightbox(dir) {
+    const nextIndex = currentImageIndex + dir;
+    if (nextIndex < 0 || nextIndex >= galleryImages.length) return;
+    currentImageIndex = nextIndex;
+    lightboxImg.src = galleryImages[currentImageIndex].src;
+    updateLightboxNav();
+}
+
+document.querySelectorAll(".gallery-grid img").forEach((img) => {
+    img.addEventListener("click", () => {
+        galleryImages = Array.from(img.closest(".gallery-grid").querySelectorAll("img"));
+        currentImageIndex = galleryImages.indexOf(img);
+        lightboxImg.src = img.src;
+        openModal(lightboxModal, img);
+        updateLightboxNav();
+    });
+});
+
+document.querySelectorAll("[data-lightbox-dir]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        stepLightbox(Number(btn.dataset.lightboxDir));
+    });
+});
+
+/* ---------- Keyboard: Escape closes the top modal, arrows navigate the lightbox ---------- */
+
+document.addEventListener("keydown", (event) => {
+    if (!modalStack.length) return;
+    if (event.key === "Escape") closeModal();
+    if (lightboxModal.classList.contains("is-open")) {
+        if (event.key === "ArrowLeft") stepLightbox(-1);
+        if (event.key === "ArrowRight") stepLightbox(1);
+    }
+});
+
+/* ---------- Nav scroll-spy + back-to-top button ---------- */
+
+const navLinks = Array.from(document.querySelectorAll(".navbar a[href^='#']"));
+const spiedSections = navLinks.map((a) => document.querySelector(a.hash)).filter(Boolean);
+const toTop = document.querySelector(".top");
+
+/* A section becomes current once its top crosses a line ~28% down the viewport.
+   Measuring positions directly (rather than reacting to IntersectionObserver
+   entries) matters here: short sections like #education are barely taller than a
+   mid-viewport observer band, so they were being overwritten by the next section. */
+function updateOnScroll() {
+    const line = window.innerHeight * 0.28;
+    const scrolledToBottom =
+        window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+
+    let current = scrolledToBottom
+        ? spiedSections[spiedSections.length - 1]
+        : spiedSections.reduce(
+            (found, section) => (section.getBoundingClientRect().top <= line ? section : found),
+            spiedSections[0]
+        );
+
+    navLinks.forEach((a) => a.classList.toggle("active", a.hash === `#${current.id}`));
+    toTop.classList.toggle("active", window.scrollY > 100);
+}
+
+let scrollQueued = false;
+window.addEventListener(
+    "scroll",
+    () => {
+        if (scrollQueued) return;
+        scrollQueued = true;
+        requestAnimationFrame(() => {
+            scrollQueued = false;
+            updateOnScroll();
+        });
+    },
+    { passive: true }
+);
+updateOnScroll();
+
+/* ---------- Contact form (EmailJS), with inline status instead of alert() ---------- */
+
+const EMAILJS_PUBLIC_KEY = "TqdISMygqylwOV_me";
+const EMAILJS_SERVICE_ID = "service_04r37xh";
+const EMAILJS_TEMPLATE_ID = "template_atisenq";
+const CONTACT_FALLBACK = "Please email me directly at eza.nda21@gmail.com.";
+
+if (window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+const contactForm = document.getElementById("contactForm");
+const formStatus = document.getElementById("form-status");
+
+contactForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!window.emailjs) {
+        formStatus.textContent = `Sorry, the contact service failed to load. ${CONTACT_FALLBACK}`;
+        return;
+    }
+    const sendButton = contactForm.querySelector(".send");
+    sendButton.disabled = true;
+    formStatus.textContent = "Sending…";
+
+    const params = {
+        name: contactForm.name.value,
+        email: contactForm.email.value,
+        subject: contactForm.subject.value,
+        message: contactForm.message.value,
+    };
+
+    emailjs
+        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+        .then(() => {
+            contactForm.reset();
+            formStatus.textContent = "Thank you! Your message has been sent.";
+        })
+        .catch(() => {
+            formStatus.textContent = `Sorry, your message could not be sent. ${CONTACT_FALLBACK}`;
+        })
+        .finally(() => {
+            sendButton.disabled = false;
+        });
+});
+
+/* ---------- Footer year ---------- */
+
+document.getElementById("footer-year").textContent = new Date().getFullYear();
